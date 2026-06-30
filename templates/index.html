@@ -145,7 +145,7 @@
             dynamicContent.innerHTML = '<p style="color: #666; font-size: 0.9rem; padding: 10px 0;">Lütfen sol taraftan bir dosya seçip \'Dosyayı Oku ve Listele\' butonuna basın.</p>';
         }
 
-        // --- 5. FLASK BACKEND BAĞLANTISI (FETCH API) ---
+        // --- 5. FLASK BACKEND BAĞLANTISI (FETCH API) - TÜM SINIF LİSTELEME ---
         uploadBtn.addEventListener('click', function() {
             if (!targetFile) {
                 alert("Lütfen önce bir dosya seçin veya sürükleyin!");
@@ -167,32 +167,55 @@
                 if (response.status === 'success') {
                     fileStatusDisplay.textContent = "✓ Tamamlandı";
                     fileStatusDisplay.style.color = "#4caf50";
-                    resultBadge.textContent = "Başarılı";
+                    resultBadge.textContent = `${response.data.length} Öğrenci`;
                     resultBadge.style.backgroundColor = "#1b5e20";
                     resultBadge.style.color = "#81c784";
 
-                    const ilkOgrenci = response.data[0];
-                    studentName.textContent = ilkOgrenci.ogrenci_adi;
-                    studentMeta.textContent = `Toplam Başarı Durumu`;
-                    avatarIcon.textContent = ilkOgrenci.ogrenci_adi.substring(0,2).toUpperCase();
+                    // Üst başlığı genel bir listeye çeviriyoruz
+                    studentName.textContent = "Sınıf Sonuç Listesi";
+                    studentMeta.textContent = `Toplam ${response.data.length} öğrenci başarıyla listelendi.`;
+                    avatarIcon.textContent = "SL";
 
                     let htmlBuilder = '';
-                    for (const [ders, not] of Object.entries(ilkOgrenci.notlar)) {
+
+                    // Tüm öğrencileri döngüyle tek tek ekliyoruz
+                    response.data.forEach((ogrenci, index) => {
+                        const avatarHarf = ogrenci.ogrenci_adi.substring(0, 2).toUpperCase();
+                        
                         htmlBuilder += `
-                            <div class="grade-row">
-                                <span>${ders}</span>
-                                <span class="score">${not}</span>
+                            <div class="student-card-item" style="border-bottom: 2px dashed #333; padding-bottom: 20px; margin-bottom: 20px;">
+                                <div class="profile-header" style="display: flex; align-items: center; margin-bottom: 15px;">
+                                    <div class="avatar" style="background-color: #333; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px;">${avatarHarf}</div>
+                                    <div>
+                                        <h4 style="margin: 0; color: #fff;">${index + 1}. ${ogrenci.ogrenci_adi}</h4>
+                                        <p style="margin: 0; font-size: 0.85rem; color: #aaa;">Öğrenci Başarı Durumu</p>
+                                    </div>
+                                </div>
+                                <div class="student-grades">
+                        `;
+
+                        // Öğrencinin notlarını döngüyle satırlara yazıyoruz
+                        for (const [ders, not] of Object.entries(ogrenci.notlar)) {
+                            htmlBuilder += `
+                                <div class="grade-row" style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.9rem;">
+                                    <span>${ders}</span>
+                                    <span class="score" style="font-weight: bold;">${not}</span>
+                                </div>
+                            `;
+                        }
+                        
+                        // Öğrencinin genel ortalamasını ekliyoruz
+                        htmlBuilder += `
+                                    <div class="grade-row total-row" style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 8px; border-top: 1px solid #44nt;">
+                                        <span><b>Genel Not Ortalaması</b></span>
+                                        <span class="score color-green" style="color: #4caf50; font-weight: bold;">${ogrenci.ortalama}</span>
+                                    </div>
+                                </div>
                             </div>
                         `;
-                    }
-                    
-                    htmlBuilder += `
-                        <div class="grade-row total-row">
-                            <span><b>Genel Not Ortalaması</b></span>
-                            <span class="score color-green">${ilkOgrenci.ortalama}</span>
-                        </div>
-                    `;
+                    });
 
+                    // Oluşturulan dinamik HTML yapısını tek seferde panele basıyoruz
                     dynamicContent.innerHTML = htmlBuilder;
                 } else {
                     alert("Hata: " + response.message);
