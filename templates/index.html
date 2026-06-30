@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karne Veri İşleme Paneli</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Kaldır Butonu İçin Ekstra Stil */
+        .btn-remove {
+            background: none;
+            border: none;
+            color: #f44336;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 0 8px;
+            margin-left: 10px;
+            display: none; /* İlk başta gizli */
+            transition: 0.2s;
+        }
+        .btn-remove:hover {
+            color: #d32f2f;
+            transform: scale(1.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="card upload-section">
+            <h3><span class="icon">📁</span> Dosya Yükleme Merkezi</h3>
+            
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <span class="upload-icon">☁️</span>
+                <p>Karne <b>PDF</b> veya <b>Excel (.xlsx)</b> dosyasını sürükle ya da <b>tıkla</b></p>
+                <input type="file" id="fileInput" accept=".pdf, .xlsx" style="display: none;">
+            </div>
+
+            <div class="file-info">
+                <span class="file-icon" id="statusIcon">⚪</span>
+                <span class="file-name" id="fileName">Henüz dosya seçilmedi...</span>
+                <span class="file-status" id="fileStatus">Bekleniyor</span>
+                <button type="button" class="btn-remove" id="removeBtn" title="Dosyayı Kaldır">✕</button>
+            </div>
+
+            <button class="btn-primary" id="uploadBtn">🔄 Dosyayı Oku ve Listele ↗</button>
+            <p class="footer-text">ⓘ Sistem yüklenen formatı otomatik olarak tanır.</p>
+        </div>
+
+        <div class="card profile-section">
+            <div class="profile-header">
+                <div class="avatar" id="avatarIcon">ÖA</div>
+                <div class="student-info">
+                    <h4 id="studentName">Öğrenci Listesi / Sonuçlar</h4>
+                    <p id="studentMeta">Yüklenen dosyadan okunan güncel veriler</p>
+                </div>
+                <span class="badge" id="resultBadge">Beklemede</span>
+            </div>
+
+            <div class="grades-container" id="gradesContainer">
+                <h5>Notlar ve Ortalamalar</h5>
+                <div id="dynamicContent">
+                    <p style="color: #666; font-size: 0.9rem; padding: 10px 0;">Lütfen sol taraftan bir dosya seçip 'Dosyayı Oku ve Listele' butonuna basın.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        const fileNameDisplay = document.getElementById('fileName');
+        const fileStatusDisplay = document.getElementById('fileStatus');
+        const statusIcon = document.getElementById('statusIcon');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const removeBtn = document.getElementById('removeBtn');
+        
+        const studentName = document.getElementById('studentName');
+        const studentMeta = document.getElementById('studentMeta');
+        const resultBadge = document.getElementById('resultBadge');
+        const dynamicContent = document.getElementById('dynamicContent');
+        const avatarIcon = document.getElementById('avatarIcon');
+
+        let targetFile = null;
+
+        // --- 1. DOSYA SEÇİMİNİ YAKALAMA ---
+        fileInput.addEventListener('change', function() {
+            if (fileInput.files.length > 0) {
+                processSelectedFile(fileInput.files[0]);
+            }
+        });
+
+        // --- 2. SÜRÜKLE-BIRAK FONKSİYONLARI ---
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, e => e.preventDefault(), false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.style.borderColor = '#666', false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.style.borderColor = '#444', false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                processSelectedFile(files[0]);
+            }
+        });
+
+        // --- 3. DOSYA SEÇİLİNCE GÖRÜNÜMÜ GÜNCELLEME ---
+        function processSelectedFile(file) {
+            targetFile = file;
+            fileNameDisplay.textContent = file.name;
+            fileStatusDisplay.textContent = "✓ Hazır";
+            fileStatusDisplay.style.color = "#4caf50";
+            statusIcon.textContent = "🟢";
+            removeBtn.style.display = "inline-block";
+        }
+
+        // --- 4. DOSYAYI KALDIRMA VE EKRANI SIFIRLAMA ---
+        removeBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            resetUploadSection();
+        });
+
+        function resetUploadSection() {
+            targetFile = null;
+            fileInput.value = ""; 
+            fileNameDisplay.textContent = "Henüz dosya seçilmedi...";
+            fileStatusDisplay.textContent = "Bekleniyor";
+            fileStatusDisplay.style.color = "#aaa";
+            statusIcon.textContent = "⚪";
+            removeBtn.style.display = "none";
+            
+            studentName.textContent = "Öğrenci Listesi / Sonuçlar";
+            studentMeta.textContent = "Yüklenen dosyadan okunan güncel veriler";
+            avatarIcon.textContent = "ÖA";
+            resultBadge.textContent = "Beklemede";
+            resultBadge.style.backgroundColor = "";
+            resultBadge.style.color = "";
+            dynamicContent.innerHTML = '<p style="color: #666; font-size: 0.9rem; padding: 10px 0;">Lütfen sol taraftan bir dosya seçip \'Dosyayı Oku ve Listele\' butonuna basın.</p>';
+        }
+
+        // --- 5. FLASK BACKEND BAĞLANTISI (FETCH API) ---
+        uploadBtn.addEventListener('click', function() {
+            if (!targetFile) {
+                alert("Lütfen önce bir dosya seçin veya sürükleyin!");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('karne_dosyasi', targetFile);
+
+            fileStatusDisplay.textContent = "⌛ Okunuyor...";
+            fileStatusDisplay.style.color = "#ffb300";
+
+            fetch('/karne-oku/', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(response => {
+                if (response.status === 'success') {
+                    fileStatusDisplay.textContent = "✓ Tamamlandı";
+                    fileStatusDisplay.style.color = "#4caf50";
+                    resultBadge.textContent = "Başarılı";
+                    resultBadge.style.backgroundColor = "#1b5e20";
+                    resultBadge.style.color = "#81c784";
+
+                    const ilkOgrenci = response.data[0];
+                    studentName.textContent = ilkOgrenci.ogrenci_adi;
+                    studentMeta.textContent = `Toplam Başarı Durumu`;
+                    avatarIcon.textContent = ilkOgrenci.ogrenci_adi.substring(0,2).toUpperCase();
+
+                    let htmlBuilder = '';
+                    for (const [ders, not] of Object.entries(ilkOgrenci.notlar)) {
+                        htmlBuilder += `
+                            <div class="grade-row">
+                                <span>${ders}</span>
+                                <span class="score">${not}</span>
+                            </div>
+                        `;
+                    }
+                    
+                    htmlBuilder += `
+                        <div class="grade-row total-row">
+                            <span><b>Genel Not Ortalaması</b></span>
+                            <span class="score color-green">${ilkOgrenci.ortalama}</span>
+                        </div>
+                    `;
+
+                    dynamicContent.innerHTML = htmlBuilder;
+                } else {
+                    alert("Hata: " + response.message);
+                    fileStatusDisplay.textContent = "❌ Başarısız";
+                    fileStatusDisplay.style.color = "#f44336";
+                }
+            })
+            .catch(error => {
+                console.error("Hata:", error);
+                fileStatusDisplay.textContent = "❌ Bağlantı Hatası";
+                fileStatusDisplay.style.color = "#f44336";
+            });
+        });
+    </script>
+</body>
+</html>
