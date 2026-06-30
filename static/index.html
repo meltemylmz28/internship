@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MEB Plan ve Evrak Otomasyonu</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <h1>MEB Plan ve Evrak Otomasyonu</h1>
+      <section class="card">
+        <h2>Giriş</h2>
+        <form id="login-form">
+          <input id="username" placeholder="Kullanıcı adı" required />
+          <input id="password" placeholder="Parola" type="password" required />
+          <button type="submit">Giriş Yap</button>
+        </form>
+        <pre id="login-result"></pre>
+      </section>
+
+      <section class="card">
+        <h2>Plan Sihirbazı</h2>
+        <label>Ders
+          <input id="subject" value="Matematik" />
+        </label>
+        <label>Sınıf
+          <input id="grade-level" value="6" />
+        </label>
+        <label>Eğitim Yılı
+          <input id="academic-year" value="2025-2026" />
+        </label>
+        <button id="generate-plan">Planı Oluştur</button>
+        <pre id="plan-result"></pre>
+      </section>
+
+      <section class="card">
+        <h2>Evrak Oluştur</h2>
+        <label>Şablon
+          <input id="template-name" value="Kulüp Yıllık Çalışma Planı" />
+        </label>
+        <label>Belge Türü
+          <input id="document-type" value="docx" />
+        </label>
+        <button id="generate-document">Belge Oluştur</button>
+        <pre id="document-result"></pre>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
