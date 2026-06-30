@@ -1,4 +1,5 @@
 # internship
+<<<<<<< HEAD
 
 Bu proje, MEB benzeri karne verilerini CSV olarak alıp her öğrenci için seçilen özellikleri kontrol eden ve sonuçları yapay zeka destekli bir dille özetleyen basit bir prototiptir.
 
@@ -24,3 +25,6 @@ python main.py --input sample_students.csv --features matematik,fen,ingilizce,de
 ```bash
 python -m unittest discover -s tests -v
 ```
+=======
+öğrencinin notlarına göre yapay zeka destekli öğretmen karne görüşü hazırlayan bir uygulama
+>>>>>>> 5864a74a09137217540140429dcfe9059ad91f70
