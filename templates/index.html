@@ -33,8 +33,8 @@
             
             <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
                 <span class="upload-icon">☁️</span>
-                <p>Karne <b>PDF</b> veya <b>Excel (.xlsx)</b> dosyasını sürükle ya da <b>tıkla</b></p>
-                <input type="file" id="fileInput" accept=".pdf, .xlsx" style="display: none;">
+                <p>Karne <b>PDF</b>, <b>Excel (.xlsx/.xls/.csv)</b>, <b>XML</b>, <b>Word (.doc/.docx)</b>, <b>Görsel (.png/.jpg/.jpeg)</b> dosyasını sürükle ya da <b>tıkla</b></p>
+                <input type="file" id="fileInput" accept=".pdf, .xlsx, .xls, .csv, .xml, .png, .jpg, .jpeg, .doc, .docx, .txt, .bmp, .tif, .tiff" style="display: none;">
             </div>
 
             <div class="file-info">
@@ -145,7 +145,7 @@
             dynamicContent.innerHTML = '<p style="color: #666; font-size: 0.9rem; padding: 10px 0;">Lütfen sol taraftan bir dosya seçip \'Dosyayı Oku ve Listele\' butonuna basın.</p>';
         }
 
-        // --- 5. FLASK BACKEND BAĞLANTISI (FETCH API) - TÜM SINIF LİSTELEME ---
+        // --- 5. FLASK BACKEND BAĞLANTISI (FETCH API) - DİNAMİK VE ÇOKLU İHTİMAL UYUMLU ---
         uploadBtn.addEventListener('click', function() {
             if (!targetFile) {
                 alert("Lütfen önce bir dosya seçin veya sürükleyin!");
@@ -153,49 +153,90 @@
             }
 
             const formData = new FormData();
-            formData.append('karne_dosyasi', targetFile);
+            formData.append('file', targetFile); // Backend 'file' ismini bekliyor
 
             fileStatusDisplay.textContent = "⌛ Okunuyor...";
             fileStatusDisplay.style.color = "#ffb300";
 
-            fetch('/karne-oku/', {
+            fetch('/upload', { // Güncel backend endpoint'i
                 method: 'POST',
                 body: formData
             })
             .then(response => response.json())
             .then(response => {
-                if (response.status === 'success') {
+                // Backend'den hata geldiyse veya öğrenci listesi boşsa
+                if (response.error || !response.students) {
+                    fileStatusDisplay.textContent = "❌ Başarısız";
+                    fileStatusDisplay.style.color = "#f44336";
+                    resultBadge.textContent = "Hata";
+                    resultBadge.style.backgroundColor = "#b71c1c";
+                    resultBadge.style.color = "#ff8a80";
+                    
+                    if (response.raw_data) {
+                        // Eğer format tam çözülemedi ama ham önizleme geldiyse
+                        studentName.textContent = "Bilinmeyen Format";
+                        studentMeta.textContent = "Belirli bir öğrenci şablonu bulunamadı, ham veriler listeleniyor.";
+                        renderRawPreview(response.raw_data);
+                    } else {
+                        dynamicContent.innerHTML = `<p style="color: #f44336; font-weight: bold;">Hata: ${response.error || 'Dosya işlenemedi.'}</p>`;
+                    }
+                    return;
+                }
+
+                // EĞER HİÇ ÖĞRENCİ YOKSA (BOŞ DOSYA İHTİMALİ)
+                if (response.students.length === 0) {
                     fileStatusDisplay.textContent = "✓ Tamamlandı";
                     fileStatusDisplay.style.color = "#4caf50";
-                    resultBadge.textContent = `${response.data.length} Öğrenci`;
-                    resultBadge.style.backgroundColor = "#1b5e20";
-                    resultBadge.style.color = "#81c784";
+                    resultBadge.textContent = "0 Öğrenci";
+                    studentName.textContent = "Sonuç Bulunamadı";
+                    studentMeta.textContent = "Dosya başarılı okundu fakat geçerli bir öğrenci kaydı tespit edilemedi.";
+                    dynamicContent.innerHTML = '<p style="color: #ffb300; font-size: 0.9rem;">⚠️ Listelenecek öğrenci verisi yok.</p>';
+                    return;
+                }
 
-                    // Üst başlığı genel bir listeye çeviriyoruz
-                    studentName.textContent = "Sınıf Sonuç Listesi";
-                    studentMeta.textContent = `Toplam ${response.data.length} öğrenci başarıyla listelendi.`;
-                    avatarIcon.textContent = "SL";
+                // BAŞARILI DURUM: ÖĞRENCİLER VAR
+                fileStatusDisplay.textContent = "✓ Tamamlandı";
+                fileStatusDisplay.style.color = "#4caf50";
+                resultBadge.textContent = `${response.students.length} Öğrenci`;
+                resultBadge.style.backgroundColor = "#1b5e20";
+                resultBadge.style.color = "#81c784";
 
-                    let htmlBuilder = '';
+                studentName.textContent = "Sınıf Sonuç Listesi";
+                studentMeta.textContent = `Toplam ${response.students.length} kayıt başarıyla listelendi.`;
+                avatarIcon.textContent = "SL";
 
-                    // Tüm öğrencileri döngüyle tek tek ekliyoruz
-                    response.data.forEach((ogrenci, index) => {
-                        const avatarHarf = ogrenci.ogrenci_adi.substring(0, 2).toUpperCase();
-                        
-                        htmlBuilder += `
-                            <div class="student-card-item" style="border-bottom: 2px dashed #333; padding-bottom: 20px; margin-bottom: 20px;">
-                                <div class="profile-header" style="display: flex; align-items: center; margin-bottom: 15px;">
-                                    <div class="avatar" style="background-color: #333; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px;">${avatarHarf}</div>
-                                    <div>
-                                        <h4 style="margin: 0; color: #fff;">${index + 1}. ${ogrenci.ogrenci_adi}</h4>
-                                        <p style="margin: 0; font-size: 0.85rem; color: #aaa;">Öğrenci Başarı Durumu</p>
-                                    </div>
+                let htmlBuilder = '';
+
+                // Tüm öğrencileri dinamik olarak dönüyoruz
+                response.students.forEach((ogrenci, index) => {
+                    const avatarHarf = ogrenci.name ? ogrenci.name.substring(0, 2).toUpperCase() : "ÖG";
+                    const okulNo = ogrenci.number && ogrenci.number !== "-" ? `(No: ${ogrenci.number})` : "";
+                    
+                    htmlBuilder += `
+                        <div class="student-card-item" style="border-bottom: 2px dashed #444; padding-bottom: 20px; margin-bottom: 20px;">
+                            <div class="profile-header" style="display: flex; align-items: center; margin-bottom: 15px;">
+                                <div class="avatar" style="background-color: #333; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px;">${avatarHarf}</div>
+                                <div>
+                                    <h4 style="margin: 0; color: #fff;">${index + 1}. ${ogrenci.name} ${okulNo}</h4>
+                                    <p style="margin: 0; font-size: 0.85rem; color: #aaa;">Öğrenci Başarı Durumu</p>
                                 </div>
-                                <div class="student-grades">
-                        `;
+                            </div>
+                            <div class="student-grades">
+                    `;
 
-                        // Öğrencinin notlarını döngüyle satırlara yazıyoruz
-                        for (const [ders, not] of Object.entries(ogrenci.notlar)) {
+                    // EĞER DERS NOTLARI VARSA (Derslerin olduğu ihtimal)
+                    if (ogrenci.grades && Object.keys(ogrenci.grades).length > 0) {
+                        let hasGeneralResult = false;
+                        let generalResultValue = "";
+
+                        for (const [ders, not] of Object.entries(ogrenci.grades)) {
+                            // Genel sonuç veya ortalamayı en alta saklamak için ayırıyoruz
+                            if (ders === "Genel Sonuç/Değerlendirme" || ders === "ORTALAMA" || ders === "SONUÇ") {
+                                hasGeneralResult = true;
+                                generalResultValue = not;
+                                continue;
+                            }
+
                             htmlBuilder += `
                                 <div class="grade-row" style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.9rem;">
                                     <span>${ders}</span>
@@ -204,31 +245,53 @@
                             `;
                         }
                         
-                        // Öğrencinin genel ortalamasını ekliyoruz
-                        htmlBuilder += `
-                                    <div class="grade-row total-row" style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 8px; border-top: 1px solid #44nt;">
-                                        <span><b>Genel Not Ortalaması</b></span>
-                                        <span class="score color-green" style="color: #4caf50; font-weight: bold;">${ogrenci.ortalama}</span>
-                                    </div>
+                        // Genel Değerlendirme / Ortalama bilgisini en alta ekle
+                        if (hasGeneralResult) {
+                            htmlBuilder += `
+                                <div class="grade-row total-row" style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 8px; border-top: 1px solid #444;">
+                                    <span><b>Genel Sonuç / Ortalama</b></span>
+                                    <span class="score color-green" style="color: #4caf50; font-weight: bold;">${generalResultValue}</span>
                                 </div>
+                            `;
+                        }
+                    } else {
+                        // EĞER HİÇ DERS YOKSA (Sadece öğrenci isim listesi durumu)
+                        htmlBuilder += `
+                            <div style="color: #aaa; font-size: 0.85rem; font-style: italic; padding: 5px 0;">
+                                ⓘ Bu öğrenciye ait ders veya not verisi bulunamadı.
                             </div>
                         `;
-                    });
+                    }
+                    
+                    htmlBuilder += `
+                            </div>
+                        </div>
+                    `;
+                });
 
-                    // Oluşturulan dinamik HTML yapısını tek seferde panele basıyoruz
-                    dynamicContent.innerHTML = htmlBuilder;
-                } else {
-                    alert("Hata: " + response.message);
-                    fileStatusDisplay.textContent = "❌ Başarısız";
-                    fileStatusDisplay.style.color = "#f44336";
-                }
+                dynamicContent.innerHTML = htmlBuilder;
             })
             .catch(error => {
                 console.error("Hata:", error);
                 fileStatusDisplay.textContent = "❌ Bağlantı Hatası";
                 fileStatusDisplay.style.color = "#f44336";
+                dynamicContent.innerHTML = '<p style="color: #f44336;">Sunucuyla iletişim kurulurken teknik bir hata oluştu.</p>';
             });
         });
+
+        // Yedek Fallback: Çözülemeyen formatlar için ham tablo çizer
+        function renderRawPreview(rawData) {
+            let tableHtml = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:0.85rem; color:#fff;">';
+            rawData.forEach(row => {
+                tableHtml += '<tr style="border-bottom:1px solid #333;">';
+                row.forEach(cell => {
+                    tableHtml += `<td style="padding:6px; border:1px solid #444;">${cell}</td>`;
+                });
+                tableHtml += '</tr>';
+            });
+            tableHtml += '</table></div>';
+            dynamicContent.innerHTML = tableHtml;
+        }
     </script>
 </body>
 </html>

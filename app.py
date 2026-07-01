@@ -1,46 +1,54 @@
 from flask import Flask, render_template, request, jsonify
 import os
-from utils import karne_sistemine_yukle
+from werkzeug.utils import secure_filename
 
-# Bu dosyanın (app.py) bulunduğu klasörün tam yolunu buluyoruz
-current_dir = os.path.dirname(os.path.abspath(__file__))
+try:
+    from utils import process_excel_file
+except ImportError:
+    from pdf_okuyucu.utils import process_excel_file
 
-# Flask'a templates ve static klasörlerinin tam yerini açık açık söylüyoruz
-app = Flask(
-    __name__,
-    template_folder=os.path.join(current_dir, 'templates'),
-    static_folder=os.path.join(current_dir, 'static')
-)
+app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
+ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv', 'xml', 'pdf', 'png', 'jpg', 'jpeg', 'bmp', 'gif', 'tif', 'tiff', 'doc', 'docx', 'txt'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/karne-oku/', methods=['POST'])
-def karne_oku():
-    if 'karne_dosyasi' not in request.files:
-        return jsonify({"status": "error", "message": "Dosya seçilmedi!"})
-        
-    dosya = request.files['karne_dosyasi']
-    if dosya.filename == '':
-        return jsonify({"status": "error", "message": "Boş dosya gönderildi!"})
 
-    # Geçici dosyayı app.py ile aynı klasöre kaydet
-    gecici_yol = os.path.join(current_dir, f"gecici_{dosya.filename}")
-    dosya.save(gecici_yol)
-    
-    try:
-        okunan_veri = karne_sistemine_yukle(gecici_yol)
-        
-        if os.path.exists(gecici_yol):
-            os.remove(gecici_yol)
-            
-        return jsonify({"status": "success", "data": okunan_veri})
-        
-    except Exception as e:
-        if os.path.exists(gecici_yol):
-            os.remove(gecici_yol)
-        return jsonify({"status": "error", "message": str(e)})
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({"error": "Dosya seçilmedi."}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "Boş dosya ismi."}), 400
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+
+        try:
+            result = process_excel_file(file_path)
+        finally:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+        return jsonify(result)
+
+    return jsonify({"error": "Geçersiz dosya uzantısı. Desteklenen formatlar: Excel, CSV, XML, PDF, görsel, Word ve TXT."}), 400
+
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8000)
+    app.run(debug=True)
